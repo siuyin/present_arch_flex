@@ -85,6 +85,7 @@ gosub/main.go:
 
 Kill the gnatsd server/cluster.
 How does it affect connected clients?
+Are any messages lost?
 
 * Go reply client -- traditionally a "server"
 goRply/main.go:
@@ -185,15 +186,18 @@ NATS is like IP on layer 3. It knows only how to send messages to a destination.
 
 Most other messaging system try to be like TCP/IP on Layer 4 -- providing "Guaranteed" in-sequence delivery. This is so long as the network is up!
 
-There is a cost to TCP/IP -- 3 way handshake, added latency with ACKs and NACKs etc. In many situations we choose to pay this cost by using TCP and not UDP for example.
+There is a cost to TCP/IP -- 3 way handshake, added latency with ACKs and NACKs etc. In many situations we choose to pay this cost, for example, by using TCP and not UDP.
 
-With NATS we can also choose to pay the cost of added reliability like in the case of the Round-Robin Dispatcher.
+With NATS we can also choose to pay the cost of added reliability -- like in the case of the Round-Robin Dispatcher.
 
 NATS also has a NATS Streaming Server, also Open Source, that provides At Least Once delivery.
 
 * Analysis: Stateless vs Stateful
-Stateless services are like Cattle. Most of us have no qualms slaughtering cattle for food. One cow is much like any other cow. For the most part they are interchangeable and replaceable.
+Stateless services are like *Cattle*. Most of us have no qualms slaughtering cattle for food. One cow is much like any other cow. For the most part they are interchangeable and replaceable.
 
-Stateful services like Database are like Pets (eg. your pet Cat). They are precious and demand special attention. They become irreplaceable.
+Stateful services like Databases are like *Pets* (eg. your pet Cat). They are precious and demand special attention. They become irreplaceable.
 
-To keep your system simple and reliable, limit the number of Stateful services. High Availability stateful services are hard to build. Here tools like zookeeper and etcd which are consistent, distributed key-value stores can help.
+To keep your system simple and reliable, limit the number of Stateful services. High Availability stateful services are hard to build. Here tools like zookeeper and *etcd* which are consistent, distributed key-value stores can help.
+
+* Download code and presentation from:
+.link https://github.com/siuyin/present_arch_flex
