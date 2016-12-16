@@ -181,6 +181,38 @@ We have a a new constraint -- but this is OK as we control both the Upstream and
 
 Try 100 workers and compare Round-Robin and Random Dispatchers performances.
 
+* Consolidator again
+goPipeCons/main.go:
+.play goPipeCons/main.go /030/,/040
+
+
+* Are we there yet?
+Let's eliminate all those timed waits. They aren't good programming.
+
+How?
+Let's use the messaging system to ask if they are ready -- Request / Reply.
+
+goPipeRRF/main.go:
+.code goPipeDispRRF/main.go /092/,/094/
+
+* Updated Dispatcher
+.code goPipeDispRRF/main.go /132/,/134/
+
+Consolidator tells workers to stop work.
+goPipeCons/main.go:
+.code goPipeCons/main.go /092/,/094/
+
+
+* Worker goroutines
+goPipeRRF/main.go:
+.code goPipeDispRRF/main.go /094/,/100/
+
+.play -edit goPipeDispRRF/main.go /050/,/060/
+
+* Consolidator again
+goPipeCons/main.go:
+.play goPipeCons/main.go /030/,/040
+
 * Analysis: Delivery Guarantees
 NATS is like IP on layer 3. It knows only how to send messages to a destination. Like IP, messages can get dropped or delivered out of sequence.
 
@@ -198,6 +230,16 @@ Stateless services are like *Cattle*. Most of us have no qualms slaughtering cat
 Stateful services like Databases are like *Pets* (eg. your pet Cat). They are precious and demand special attention. They become irreplaceable.
 
 To keep your system simple and reliable, limit the number of Stateful services. High Availability stateful services are hard to build. Here tools like zookeeper and *etcd* which are consistent, distributed key-value stores can help.
+
+* High Availability Stateful Services
+The 3 instances of Consolidator show 3 different logs because they were started at different times.
+
+Which instance recorded the true history of the runs? _Obviously_ the first one? It is not so easy. What if the first instance was restarted?
+
+For all Consolidator instances to be consistent -- i.e. show the same history / log. One of them must be elected as the leader.
+Other instance that may fall out of sync (followers) will ask the leader for its log and replay it to  make the follower's internal state consistent with the leader.
+
+etcd / zookeeper being consistent distributed stores have mechanisms to consistently track the leader / follower states of the Consolidator set.
 
 * Download code and presentation from:
 .link https://github.com/siuyin/present_arch_flex

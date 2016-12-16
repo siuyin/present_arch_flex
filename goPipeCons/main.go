@@ -46,9 +46,12 @@ func main() {
 		if n == pc.NumJobs {
 			endTime = time.Now()
 			fmt.Println(results)
+			//092_OMIT
 			fmt.Printf("Processing time: %v\n\n", endTime.Sub(startTime).Seconds())
 			n = 0
 			results = []string{}
+			c.Publish("AppA.Stateless.PipeA.StopWork", "Stop Work") // HL
+			//094_OMIT
 		}
 	})
 	select {}

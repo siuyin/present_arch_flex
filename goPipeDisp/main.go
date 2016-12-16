@@ -25,7 +25,7 @@ func main() {
 	defer c.Close()
 	// 040_OMIT
 	//050_OMIT
-	numWorkers := 10 // Try 2,5,10,100 // HL
+	numWorkers := 1 // Try 2,5,10,100 // HL
 	//060_OMIT
 	//070_OMIT
 	for i := 1; i <= numWorkers; i++ {
