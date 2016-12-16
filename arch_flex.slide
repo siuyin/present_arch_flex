@@ -1,0 +1,199 @@
+Architectural Flexibility
+with NATS and Go
+15 Dec 2016
+
+Loh Siu Yin
+Technology Consultant, Beyond Broadcast LLP
+siuyin@beyondbroadcast.com
+
+* Architecture
+
+- The art or practice of designing and constructing buildings:
+The style in which a building is designed and constructed, especially with regard to a specific period, place, or culture:
+Eg. Georgian architecture
+
+- The complex or carefully designed structure of something:
+Eg. The conceptual structure and logical organization of a computer or computer-based system.
+
+_English_Oxford_Dictionary_
+
+* Software Architecture
+
+Stuff that is hard to change.
+
+_Martin_Fowler_
+
+.image wdot/arch1.png
+
+How do we insert b1 between b and d?
+
+* Who can help me?
+
+-- Derek Collison, Author: NATS messaging system
+
+----
+
+This is a problem of *Service* *Discovery*.
+
+*Physical:* We go into a room and ask: Who can help me?
+
+*Software:* We publish this same question on a Pub/Sub topic.
+
+*Example*Topic:*
+AppA.Compute.Ask <-- Publish your question here.
+AppA.Compute.Reply <-- Subscribe to this topic to receive responses.
+
+* Two classes of respondents
+
+- Stateless
+- Stateful
+
+*Stateless:*
+I will always get the same answer to a question. Eg. What is 2+3?
+
+I can ask _any_ object capable of answering the question and I will always get the same answer.
+
+
+*Stateful:*
+The answer I get depends on my past interaction with the object.
+Eg. How much is my bank balance.
+
+I can ask only _one_ object to get the answer, for example the database.
+
+* NATS
+.link https://nats.io
+-- simple and high performance Open Source messaging solution
+
+Has:
+- Publish / Subscribe
+- Request / Reply  -- using Pub/Sub! More on this later.
+- Distributed Queues -- again using Pub/Sub.
+
+Can be clustered:
+.image wdot/nats_cluster.png _ 400
+
+* gnatsd Go NATS server
+.play run_server.sh
+
+* Go publish client
+gopub/main.go:
+.play -edit gopub/main.go
+
+* Go subscribe client
+gosub/main.go:
+.play -edit gosub/main.go /010/,/020/
+
+Kill the gnatsd server/cluster.
+How does it affect connected clients?
+
+* Go reply client -- traditionally a "server"
+goRply/main.go:
+.play -edit goRply/main.go /010/,/020/
+
+* Go request client -- traditionally a "client"
+goreq/main.go:
+.play -edit goreq/main.go /010/,/020/
+
+* Go reply client 2 -- same but slower
+goRply/main.go:
+.play -edit goRplyS/main.go /010/,/020/
+
+Now go to the fast server and make it "slow".
+
+* Parallel Processing Pipeline
+
+.image wdot/parallel.png
+
+*a* is the stateless job dispatcher / assigner (output always the same for given input)
+*b* and *c* are stateless workers
+*d* is the _stateful_ results consolidator (output changes depending on prior configuration input)
+
+We can make the pipeline faster by adding more workers.
+
+* Pipeline Results Consolidator
+goPipeCons/main.go:
+.code goPipeCons/main.go /030/,/060/
+
+Dispatcher tells Consolidator number of job results to expect. It has this state to maintain.
+.code goPipeCons/main.go /070/,/080/
+
+* Consolidate results
+.play goPipeCons/main.go /090/,/100/
+
+* Job Dispatcher
+.code goPipeDisp/main.go /030/,/040/
+
+Launch worker goroutines and give them 10 jobs.
+.code goPipeDisp/main.go /050/,/080/
+.code goPipeDisp/main.go /090/,/100/
+
+
+* Worker
+.code goPipeDisp/main.go /110/,/120/
+.play -edit goPipeDisp/main.go /050/,/060/
+
+* Why did NATS use a Randomly Distributed Queue?
+NATS is _different_.
+
+Other messaging systems try to be customer oriented by making sure messages do not get lost or get out of sequence (Exactly Once Delivery).
+
+NATS does not even try. It is fire and forget. It does _not_ care if you got the message at all.
+If you are a slow reader or a sometimes connected reader, NATS is not going to hold the message for you.
+It will buffer messages to some extent but after that, drop them on the floor.
+
+NATS is selfish and protects itself at all cost. It is _me_first_.
+
+Why? Because it is designed (by Derek Collison) to be the Central Nervous System and it must _always_ be up and available.
+
+* Yes, And ...
+Yes, and in the situation below. A Round Robin Dispatcher would have been a better choice than a Random Dispatcher.
+
+.image wdot/parallel.png
+
+With 10 workers, it would deterministically cut processing time by 10X.
+
+Well you can ..., it's just that NATS is not going to do it for you.
+
+* Architectural Flexibility: Add a Round Robin Dispatcher (RR).
+.image wdot/roundRobin.png
+
+goPipeDispRR/main.go:
+.code goPipeDispRR/main.go /070/,/080/
+
+* rrDispatcher
+.code goPipeDispRR/main.go /130/,/135/
+We have a race condition which the stateful rrDispatcher alone cannot resolve.
+
+To avoid the race, Upsteam must send config, wait, then send jobs.
+We have a a new constraint -- but this is OK as we control both the Upstream and rrDispatcher when making this change.
+
+* rrDispatcher (2)
+.code goPipeDispRR/main.go /135/,/140/
+.code goPipeDispRR/main.go /010/,/020/
+
+* Updated worker
+.code goPipeDispRR/main.go /110/,/120/
+
+* Bring up RRDispatcher and send jobs
+.code goPipeDispRR/main.go /070/,/100/
+.play -edit goPipeDispRR/main.go /050/,/060/
+
+Try 100 workers and compare Round-Robin and Random Dispatchers performances.
+
+* Analysis: Delivery Guarantees
+NATS is like IP on layer 3. It knows only how to send messages to a destination. Like IP, messages can get dropped or delivered out of sequence.
+
+Most other messaging system try to be like TCP/IP on Layer 4 -- providing "Guaranteed" in-sequence delivery. This is so long as the network is up!
+
+There is a cost to TCP/IP -- 3 way handshake, added latency with ACKs and NACKs etc. In many situations we choose to pay this cost by using TCP and not UDP for example.
+
+With NATS we can also choose to pay the cost of added reliability like in the case of the Round-Robin Dispatcher.
+
+NATS also has a NATS Streaming Server, also Open Source, that provides At Least Once delivery.
+
+* Analysis: Stateless vs Stateful
+Stateless services are like Cattle. Most of us have no qualms slaughtering cattle for food. One cow is much like any other cow. For the most part they are interchangeable and replaceable.
+
+Stateful services like Database are like Pets (eg. your pet Cat). They are precious and demand special attention. They become irreplaceable.
+
+To keep your system simple and reliable, limit the number of Stateful services. High Availability stateful services are hard to build. Here tools like zookeeper and etcd which are consistent, distributed key-value stores can help.

@@ -1,0 +1,35 @@
+# Rake file to generate png output from wdots.
+# type rake to execute.
+
+sources = FileList['*.wdot']
+targets = sources.map{|s| (File.basename(s,'.wdot')+'.png')}
+zip_includes = FileList['*.xls'] + targets
+
+rule '.png' => ['.wdot'] do |t|
+  #eg. sh "cc #{t.source} -c -o #{t.name}"
+  sh "$HOME/bin/wdot #{t.source}"
+end
+
+file "wdot" => targets
+
+#file "prog" => ["a.o", "b.o"] do |t|
+#  sh "cc -o #{t.name} #{t.prerequisites.join(' ')}"
+#end
+
+desc "Build all wdot png and package as images.zip ."
+file "images" => zip_includes do |t|
+  sh "zip -9 #{t.name} #{t.prerequisites.join(' ')}"
+end
+
+
+desc "Make all wdots."
+task :default => file("wdot")
+
+desc "Remove all .png s."
+task :clean do
+  targets.each do |t|
+    File.delete(t) if File.exist?(t)
+  end
+  File.delete "images.zip" if File.exist? "images.zip"
+end
+

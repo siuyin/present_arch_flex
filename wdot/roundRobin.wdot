@@ -1,0 +1,7 @@
+:head LR {
+a->RR
+RR->b
+RR->c
+b->d
+c->d
+}
